@@ -23,6 +23,16 @@ namespace ImmersiveShared
         private static bool IsMaterial(GearItem gi) => !gi.IsAttachedToPlacePoint();
 
         /// <summary>
+        /// Told right before something is taken from an item lying around: the item, and whether it is a container that
+        /// is poured from (bottle, bag, broth) rather than used itself. ImmersiveCooking shows the item flying into the
+        /// cookware; null in a mod that doesn't.
+        /// </summary>
+        public static Action<GearItem, bool> BeforeTake = null;
+
+        /// <summary>Told right after: the item, and whether some of it is left where it lies (before a used-up one is removed).</summary>
+        public static Action<GearItem, bool> AfterTake = null;
+
+        /// <summary>
         /// The order to use items lying around (InUseOrder), with stackable items (tea, coffee, ...) shown once per kind,
         /// like the game shows a stack in the inventory: the first of each kind is the one used. Pieces like meat stay
         /// separate (each has its own weight, as in the inventory).
@@ -111,16 +121,19 @@ namespace ImmersiveShared
             var player = GameManager.GetPlayerManagerComponent();
             int have = Units(gi);
             GearItem moved;
+            BeforeTake?.Invoke(gi, false);
             if (gi.m_StackableItem != null && units > 0 && units < have)
             {
                 var part = gi.InstantiateStackable(units);
                 if (part == null) return null;
                 gi.m_StackableItem.m_Units = have - units;
+                AfterTake?.Invoke(gi, true);
                 moved = player.AddItemToPlayerInventory(part, false, false);
                 Verbose.Log($"Took {units} of {have} x {Nearby.GearName(gi)} lying near the {place.Label} (the rest stays)");
             }
             else
             {
+                AfterTake?.Invoke(gi, false);
                 moved = player.AddItemToPlayerInventory(gi, false, false);
                 Verbose.Log($"Took {Nearby.GearName(gi)} lying near the {place.Label} (same object {moved != null && moved.Pointer == gi.Pointer})");
             }
@@ -159,6 +172,8 @@ namespace ImmersiveShared
                 int units = Units(gi);
                 int take = Math.Min(units, count - taken);
                 if (take <= 0) continue;
+                BeforeTake?.Invoke(gi, false);
+                AfterTake?.Invoke(gi, take < units);
                 if (take == units)
                     place.Destroy(gi);
                 else
@@ -179,10 +194,12 @@ namespace ImmersiveShared
             {
                 if (taken >= amount) break;
                 long before = gi.GetItemWeightKG(false).m_Units;
+                BeforeTake?.Invoke(gi, false);
                 long removed = Inventory.RemoveAmountFromGearItem(gi, new ItemWeight(amount - taken)).m_Units;
+                long left = gi.GetItemWeightKG(false).m_Units;
+                AfterTake?.Invoke(gi, removed <= 0 || left > 0);
                 if (removed <= 0) continue;
                 taken += removed;
-                long left = gi.GetItemWeightKG(false).m_Units;
                 if (left <= 0) place.Destroy(gi);
                 Verbose.Log($"Used {removed} weight units of {Nearby.GearName(gi)} lying near the {place.Label} " +
                              $"({before} -> {Math.Max(left, 0)}{(left <= 0 ? ", used up" : "")})");
@@ -200,10 +217,12 @@ namespace ImmersiveShared
                 if (taken >= amount) break;
                 var powder = gi.m_PowderItem;
                 long before = powder.m_Weight.m_Units;
+                BeforeTake?.Invoke(gi, true);
                 long removed = powder.RemovePowder(new ItemWeight(amount - taken)).m_Units;
+                long left = powder.m_Weight.m_Units;
+                AfterTake?.Invoke(gi, removed <= 0 || left > 0);
                 if (removed <= 0) continue;
                 taken += removed;
-                long left = powder.m_Weight.m_Units;
                 if (left <= 0) place.Destroy(gi);
                 Verbose.Log($"Used {removed} weight units of {type.name} from {Nearby.GearName(gi)} lying near the {place.Label} " +
                              $"({before} -> {Math.Max(left, 0)}{(left <= 0 ? ", used up" : "")})");
@@ -276,6 +295,7 @@ namespace ImmersiveShared
                 long before = WaterIn(gi);
                 long removed;
                 bool destroy;
+                BeforeTake?.Invoke(gi, true);
                 if (Liquid.Of(gi) is { } l)
                 {
                     removed = l.Remove(volume - taken);
@@ -288,6 +308,7 @@ namespace ImmersiveShared
                     gi.m_WaterSupply.m_VolumeInLiters = new ItemLiquidVolume(before - removed);
                     destroy = before - removed <= 0;
                 }
+                AfterTake?.Invoke(gi, removed <= 0 || !destroy);
                 if (removed <= 0) continue;
                 taken += removed;
                 if (destroy) place.Destroy(gi);

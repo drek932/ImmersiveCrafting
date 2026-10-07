@@ -2,7 +2,7 @@ using System;
 using MelonLoader;
 using ImmersiveShared;
 
-[assembly: MelonInfo(typeof(ImmersiveCrafting.Main), "ImmersiveCrafting", "1.0.0", "drek932")]
+[assembly: MelonInfo(typeof(ImmersiveCrafting.Main), "ImmersiveCrafting", "1.0.1", "drek932")]
 [assembly: MelonGame("Hinterland", "TheLongDark")]
 
 namespace ImmersiveCrafting
