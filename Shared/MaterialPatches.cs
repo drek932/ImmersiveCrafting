@@ -328,5 +328,71 @@ namespace ImmersiveShared
             try { return GameManager.GetInventoryComponent().GetTotalLiquidVolume(type).m_Units; }
             finally { askingInventory = false; }
         }
+
+        /// <summary>
+        /// What a blueprint would take from the items lying around, worked out the way using up does it above (each
+        /// requirement: the part the inventory can't cover, from the items lying around) with Materials.Pretend set: the
+        /// Take functions tell BeforeTake / AfterTake and change nothing. ImmersiveCooking uses it to show a recipe's
+        /// ingredients flying in while it is still prepared (the game uses them up only when the preparation ends).
+        /// </summary>
+        public static void PretendUse(Nearby place, BlueprintData bp)
+        {
+            if (place == null || bp == null) return;
+            var inventory = GameManager.GetInventoryComponent();
+            if (inventory == null) return;
+            Materials.Pretend = true;
+            try
+            {
+                if (bp.m_RequiredGear != null)
+                    foreach (var req in bp.m_RequiredGear)
+                    {
+                        if (req?.m_Item == null) continue;
+                        if (req.m_Units == BlueprintData.RequiredGearItem.Units.Kilograms)
+                        {
+                            long carried = CarriedWeight(inventory, req.m_Item.GearItemData, false, false);
+                            if (req.m_Weight.m_Units > carried) Materials.TakeWeight(place, req.m_Item.GearItemData, req.m_Weight.m_Units - carried, false, false);
+                        }
+                        else
+                        {
+                            string name = Nearby.GearName(req.m_Item);
+                            int carried = CarriedUnits(inventory, name, false);
+                            if (req.m_Count > carried) Materials.TakeUnits(place, name, req.m_Count - carried, false);
+                        }
+                    }
+                if (bp.m_RequiredLiquid != null)
+                    foreach (var l in bp.m_RequiredLiquid)
+                    {
+                        if (l?.m_Liquid == null) continue;
+                        long wanted = l.m_Volume.m_Units;
+                        if (Materials.IsDrinkingWater(l.m_Liquid))
+                        {
+                            if (!Host.TakesWater || wanted <= 0) continue;
+                            var supply = inventory.GetPotableWaterSupply()?.m_WaterSupply;
+                            long carried = supply != null ? supply.m_VolumeInLiters.m_Units : 0;
+                            if (wanted > carried) Materials.TakeDrinkableWater(place, wanted - carried);
+                        }
+                        else
+                        {
+                            long carried = CarriedLiquid(l.m_Liquid);
+                            if (wanted > carried) Materials.TakeLiquid(place, l.m_Liquid, wanted - carried);
+                        }
+                    }
+                if (bp.m_RequiredPowder != null)
+                    foreach (var p in bp.m_RequiredPowder)
+                    {
+                        if (p?.m_Powder == null) continue;
+                        long carried = CarriedPowder(p.m_Powder);
+                        if (p.m_Quantity.m_Units > carried) Materials.TakePowder(place, p.m_Powder, p.m_Quantity.m_Units - carried);
+                    }
+            }
+            catch (Exception e)
+            {
+                Workspace.LogOnce("PretendUse", "Working out what a recipe takes: " + e);
+            }
+            finally
+            {
+                Materials.Pretend = false;
+            }
+        }
     }
 }

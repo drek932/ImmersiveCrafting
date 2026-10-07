@@ -33,6 +33,12 @@ namespace ImmersiveShared
         public static Action<GearItem, bool> AfterTake = null;
 
         /// <summary>
+        /// While set, the Take functions only work out what they would take (BeforeTake / AfterTake are told the same
+        /// way) and change nothing: ImmersiveCooking shows a recipe's ingredients flying in while it is still prepared.
+        /// </summary>
+        public static bool Pretend = false;
+
+        /// <summary>
         /// The order to use items lying around (InUseOrder), with stackable items (tea, coffee, ...) shown once per kind,
         /// like the game shows a stack in the inventory: the first of each kind is the one used. Pieces like meat stay
         /// separate (each has its own weight, as in the inventory).
@@ -174,11 +180,12 @@ namespace ImmersiveShared
                 if (take <= 0) continue;
                 BeforeTake?.Invoke(gi, false);
                 AfterTake?.Invoke(gi, take < units);
+                taken += take;
+                if (Pretend) continue;
                 if (take == units)
                     place.Destroy(gi);
                 else
                     gi.m_StackableItem.m_Units = units - take;
-                taken += take;
                 Verbose.Log($"Used {take} x {Nearby.GearName(gearName)} lying near the {place.Label} " +
                              (take == units ? "(item used up)" : $"({units} -> {units - take})") + $" at height {Bottom(gi):0.00}");
             }
@@ -195,11 +202,12 @@ namespace ImmersiveShared
                 if (taken >= amount) break;
                 long before = gi.GetItemWeightKG(false).m_Units;
                 BeforeTake?.Invoke(gi, false);
-                long removed = Inventory.RemoveAmountFromGearItem(gi, new ItemWeight(amount - taken)).m_Units;
-                long left = gi.GetItemWeightKG(false).m_Units;
+                long removed = Pretend ? Math.Min(before, amount - taken) : Inventory.RemoveAmountFromGearItem(gi, new ItemWeight(amount - taken)).m_Units;
+                long left = Pretend ? before - removed : gi.GetItemWeightKG(false).m_Units;
                 AfterTake?.Invoke(gi, removed <= 0 || left > 0);
                 if (removed <= 0) continue;
                 taken += removed;
+                if (Pretend) continue;
                 if (left <= 0) place.Destroy(gi);
                 Verbose.Log($"Used {removed} weight units of {Nearby.GearName(gi)} lying near the {place.Label} " +
                              $"({before} -> {Math.Max(left, 0)}{(left <= 0 ? ", used up" : "")})");
@@ -218,11 +226,12 @@ namespace ImmersiveShared
                 var powder = gi.m_PowderItem;
                 long before = powder.m_Weight.m_Units;
                 BeforeTake?.Invoke(gi, true);
-                long removed = powder.RemovePowder(new ItemWeight(amount - taken)).m_Units;
-                long left = powder.m_Weight.m_Units;
+                long removed = Pretend ? Math.Min(before, amount - taken) : powder.RemovePowder(new ItemWeight(amount - taken)).m_Units;
+                long left = Pretend ? before - removed : powder.m_Weight.m_Units;
                 AfterTake?.Invoke(gi, removed <= 0 || left > 0);
                 if (removed <= 0) continue;
                 taken += removed;
+                if (Pretend) continue;
                 if (left <= 0) place.Destroy(gi);
                 Verbose.Log($"Used {removed} weight units of {type.name} from {Nearby.GearName(gi)} lying near the {place.Label} " +
                              $"({before} -> {Math.Max(left, 0)}{(left <= 0 ? ", used up" : "")})");
@@ -298,19 +307,20 @@ namespace ImmersiveShared
                 BeforeTake?.Invoke(gi, true);
                 if (Liquid.Of(gi) is { } l)
                 {
-                    removed = l.Remove(volume - taken);
-                    destroy = l.Volume <= 0 && l.DestroyWhenEmpty;
+                    removed = Pretend ? Math.Min(before, volume - taken) : l.Remove(volume - taken);
+                    destroy = (Pretend ? before - removed : l.Volume) <= 0 && l.DestroyWhenEmpty;
                 }
                 else
                 {
                     // Dropped water: just a volume.
                     removed = Math.Min(before, volume - taken);
-                    gi.m_WaterSupply.m_VolumeInLiters = new ItemLiquidVolume(before - removed);
+                    if (!Pretend) gi.m_WaterSupply.m_VolumeInLiters = new ItemLiquidVolume(before - removed);
                     destroy = before - removed <= 0;
                 }
                 AfterTake?.Invoke(gi, removed <= 0 || !destroy);
                 if (removed <= 0) continue;
                 taken += removed;
+                if (Pretend) continue;
                 if (destroy) place.Destroy(gi);
                 Verbose.Log($"Used {removed} volume units of {what} from {Nearby.GearName(gi)} lying near the {place.Label} " +
                              $"({before} -> {Math.Max(before - removed, 0)}{(destroy ? ", removed" : "")})");
