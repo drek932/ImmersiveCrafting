@@ -33,7 +33,8 @@ namespace ImmersiveShared
             return Host.CountsMaterials ? place : null;
         }
 
-        private static int CarriedUnits(Inventory inventory, string gearName, bool ignoreWornOut)
+        /// <summary>Units the player carries (the inventory alone, whatever scope is open).</summary>
+        public static int CarriedUnits(Inventory inventory, string gearName, bool ignoreWornOut)
         {
             askingInventory = true;
             try { return inventory.NumGearInInventory(gearName, ignoreWornOut); }
@@ -179,6 +180,11 @@ namespace ImmersiveShared
 
         private static Nearby consuming;
 
+        /// <summary>Work other than crafting (repairs) uses up materials at this place until EndUsingUp; null: none.</summary>
+        public static void BeginUsingUp(Nearby place) => consuming = Host.CountsMaterials ? place : null;
+
+        public static void EndUsingUp() => consuming = null;
+
         [HarmonyPatch(typeof(CraftingOperation), nameof(CraftingOperation.ConsumeMaterialsUsedForCrafting))]
         private static class ConsumeMaterialsUsedForCrafting
         {
@@ -287,7 +293,10 @@ namespace ImmersiveShared
 
         private static long waterTaken;
 
-        /// <summary>Drinkable water used by a recipe: the carried supply first, then water lying around.</summary>
+        /// <summary>
+        /// Drinkable water used by a recipe: water lying around FIRST, then the carried supply (the one exception to
+        /// "what you carry is used first": the bottles by the fire are emptied before the water in the pack).
+        /// </summary>
         [HarmonyPatch(typeof(PlayerManager), nameof(PlayerManager.DeductWaterFromInventory))]
         private static class DeductWaterFromInventory
         {
@@ -298,12 +307,7 @@ namespace ImmersiveShared
                 if (!Host.TakesWater || place == null || __0.m_Units <= 0 || __1 != LiquidQuality.Potable) return;
                 long wanted = __0.m_Units;
                 long taken = 0;
-                Guard("DeductWater", () =>
-                {
-                    var supply = GameManager.GetInventoryComponent().GetPotableWaterSupply()?.m_WaterSupply;
-                    long carried = supply != null ? supply.m_VolumeInLiters.m_Units : 0;
-                    if (wanted > carried) taken = Materials.TakeDrinkableWater(place, wanted - carried);
-                });
+                Guard("DeductWater", () => taken = Materials.TakeDrinkableWater(place, wanted));
                 waterTaken = taken;
                 __0 = new ItemLiquidVolume(Math.Max(0, wanted - taken));
             }
@@ -366,10 +370,9 @@ namespace ImmersiveShared
                         long wanted = l.m_Volume.m_Units;
                         if (Materials.IsDrinkingWater(l.m_Liquid))
                         {
+                            // Water lying around first, as DeductWaterFromInventory above.
                             if (!Host.TakesWater || wanted <= 0) continue;
-                            var supply = inventory.GetPotableWaterSupply()?.m_WaterSupply;
-                            long carried = supply != null ? supply.m_VolumeInLiters.m_Units : 0;
-                            if (wanted > carried) Materials.TakeDrinkableWater(place, wanted - carried);
+                            Materials.TakeDrinkableWater(place, wanted);
                         }
                         else
                         {

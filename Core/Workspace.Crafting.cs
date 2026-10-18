@@ -70,6 +70,55 @@ namespace ImmersiveShared
             return station;
         }
 
+        // --- repairs ---
+
+        private static float nextRepairLook;
+        private static Nearby repairPlace;
+        private static IntPtr repairLogged;
+
+        /// <summary>
+        /// The workbench / ammo workbench / furniture workbench / forge the player stands at while repairing (opened from
+        /// the bench or from the inventory alike, user), the nearest; null if none or the setting is off. Looked up once a
+        /// second: the repair panel asks often.
+        /// </summary>
+        public static Nearby RepairStation()
+        {
+            if (!Main.Settings.stations || !Main.Settings.repair) return null;
+            if (UnityEngine.Time.time < nextRepairLook) return repairPlace;
+            nextRepairLook = UnityEngine.Time.time + 1f;
+            repairPlace = null;
+            var player = GameManager.GetPlayerTransform();
+            if (player == null) return null;
+            float best = float.MaxValue;
+            UnityEngine.Component found = null;
+            void Consider(UnityEngine.Component c, bool forge)
+            {
+                if (c == null || !c.gameObject.activeInHierarchy) return;
+                float radius = forge ? Main.Settings.forgeRadius : Main.Settings.stationRadius;
+                var place = Nearby.AroundObject(c.GetIl2CppType().Name, forge ? ForgeRoot(c.gameObject) : c.gameObject, radius);
+                // The player stands at it: within the reach and an arm's length more.
+                float d = place.Distance(player.position);
+                if (d > radius + 1.5f || d >= best) return;
+                best = d;
+                place.WithSmallContainers = Main.Settings.smallContainers;
+                repairPlace = place;
+                found = c;
+            }
+            foreach (var c in UnityEngine.Object.FindObjectsOfType<WorkBench>()) Consider(c, false);
+            foreach (var c in UnityEngine.Object.FindObjectsOfType<AmmoWorkBench>()) Consider(c, false);
+            foreach (var c in UnityEngine.Object.FindObjectsOfType<FurnitureWorkBench>()) Consider(c, false);
+            foreach (var c in UnityEngine.Object.FindObjectsOfType<Forge>()) Consider(c, true);
+            if (found != null && found.Pointer != repairLogged)
+            {
+                repairLogged = found.Pointer;
+                var tools = repairPlace.Lying().Where(g => g.m_ToolsItem != null).Select(Nearby.GearName).ToList();
+                Verbose.Log("Repairing at " + repairPlace.Describe() + "; tools lying there: " +
+                             (tools.Count == 0 ? "none" : string.Join(", ", tools)) +
+                             (Main.Settings.materials ? "; other items: " + Materials.Describe(repairPlace) : ""));
+            }
+            return repairPlace;
+        }
+
         /// <summary>Forget the station when the crafting menu closes, so the next opening logs what lies there.</summary>
         public static void CraftingClosed() => station = null;
 

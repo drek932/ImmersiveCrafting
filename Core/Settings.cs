@@ -15,6 +15,10 @@ namespace ImmersiveCrafting
         [Description("IMCR_MATERIALS_DESC")]
         public bool materials = true;
 
+        [Name("IMCR_REPAIR", Localize = true)]
+        [Description("IMCR_REPAIR_DESC")]
+        public bool repair = true;
+
         [Name("IMCR_SMALL_CONTAINERS", Localize = true)]
         [Description("IMCR_SMALL_CONTAINERS_DESC")]
         public bool smallContainers = true;
@@ -45,8 +49,8 @@ namespace ImmersiveCrafting
         public float iceHoleRadius = 1f;
 
         public string Describe() => string.Format(CultureInfo.InvariantCulture,
-            "workbenches: tools {0}, materials {1}, small containers {2}, reach {3:0.0} m, at a forge {7:0.0} m, at a fire {4:0.0} m; ice holes {5} ({6:0.0} m)",
-            OnOff(stations), OnOff(materials), OnOff(smallContainers), stationRadius, fireRadius, OnOff(iceHoles), iceHoleRadius, forgeRadius);
+            "workbenches: tools {0}, materials {1}, repairs {8}, small containers {2}, reach {3:0.0} m, at a forge {7:0.0} m, at a fire {4:0.0} m; ice holes {5} ({6:0.0} m)",
+            OnOff(stations), OnOff(materials), OnOff(smallContainers), stationRadius, fireRadius, OnOff(iceHoles), iceHoleRadius, forgeRadius, OnOff(repair));
 
         private static string OnOff(bool on) => on ? "on" : "off";
 

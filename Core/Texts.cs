@@ -25,6 +25,14 @@ namespace ImmersiveCrafting
                 "Yes — materials lying nearby are used for crafting too: pieces, by weight, gunpowder, salt, lamp oil. " +
                 "What you carry is used first, then what lies around: from the top down (top of a pile, the table, the floor, " +
                 "under the table last), at the same height the farthest first."),
+            ["REPAIR"] = ("    Ремонт у верстака", "    Repairs at a workbench"),
+            ["REPAIR_DESC"] = (
+                "Да — когда вы ремонтируете вещь, стоя у верстака, верстака для патронов, верстака для мебели или горна (неважно, открыли " +
+                "ремонт у верстака или из инвентаря), инструменты и материалы, которые лежат там, тоже можно использовать. " +
+                "Инструменты предлагаются после ваших, материалы тратятся после ваших, сверху вниз.",
+                "Yes — when you repair something standing at a workbench, ammo workbench, furniture workbench or forge (whether you " +
+                "opened the repair at the bench or from the inventory), tools and materials lying there can be used too. " +
+                "Tools are offered after yours, materials are used up after yours, from the top down."),
             ["SMALL_CONTAINERS"] = ("    Малые контейнеры у верстака", "    Small containers at the workbench"),
             ["SMALL_CONTAINERS_DESC"] = (
                 "Да — инструменты и материалы в малых контейнерах рядом с верстаком (до 5 кг, например ящик самого верстака) " +
