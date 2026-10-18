@@ -19,6 +19,9 @@ namespace ImmersiveShared
         /// <summary>Drinking water lying around is not used for crafting: recipes take it from the inventory.</summary>
         public const bool TakesWater = false;
 
+        /// <summary>Items lying around at a station: the top of a pile first, then the farthest from the player.</summary>
+        public static bool NearestToPlayerFirst => false;
+
         /// <summary>
         /// Where materials for this crafting operation come from: the station it runs at. Recipes of the cooking menu
         /// are left to ImmersiveCooking.

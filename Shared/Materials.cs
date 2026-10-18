@@ -147,19 +147,34 @@ namespace ImmersiveShared
             return moved;
         }
 
+        private const float SameRow = 0.05f; // items this close in distance from the player count as one row
+
         /// <summary>
-        /// Lying openly before stored in a small container; then the highest first; at the same height, the farthest
-        /// from the player first.
+        /// Lying openly before stored in a small container; then, per mod (Host.NearestToPlayerFirst):
+        ///  - nearest to the player first (by distance along the floor, in 5 cm rows), at the same distance the highest
+        ///    (ImmersiveCooking: the front row of jars, not one from behind);
+        ///  - or the highest first, at the same height the farthest from the player (ImmersiveCrafting).
         /// </summary>
         public static List<GearItem> InUseOrder(Nearby place, IEnumerable<GearItem> items)
         {
             var player = GameManager.GetPlayerTransform();
             Vector3 from = player != null ? player.position : Vector3.zero;
-            return items
-                .OrderBy(g => place != null && place.IsInContainer(g) ? 1 : 0)
+            var open = items.OrderBy(g => place != null && place.IsInContainer(g) ? 1 : 0);
+            if (Host.NearestToPlayerFirst)
+                return open
+                    .ThenBy(g => Mathf.Round(FloorDistance(g.transform.position, from) / SameRow))
+                    .ThenByDescending(g => Mathf.Round(Bottom(g) / SameHeight))
+                    .ToList();
+            return open
                 .ThenByDescending(g => Mathf.Round(Bottom(g) / SameHeight))
                 .ThenByDescending(g => Vector3.Distance(g.transform.position, from))
                 .ToList();
+        }
+
+        private static float FloorDistance(Vector3 a, Vector3 b)
+        {
+            float dx = a.x - b.x, dz = a.z - b.z;
+            return Mathf.Sqrt(dx * dx + dz * dz);
         }
 
         private static float Bottom(GearItem gi)
