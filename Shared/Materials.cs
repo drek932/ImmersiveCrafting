@@ -29,8 +29,13 @@ namespace ImmersiveShared
         /// </summary>
         public static Action<GearItem, bool> BeforeTake = null;
 
-        /// <summary>Told right after: the item, and whether some of it is left where it lies (before a used-up one is removed).</summary>
-        public static Action<GearItem, bool> AfterTake = null;
+        /// <summary>
+        /// Told right after: the item, whether some of it is left where it lies (before a used-up one is removed), and the
+        /// share of it taken (0..1: of its stack units, weight, powder or liquid).
+        /// </summary>
+        public static Action<GearItem, bool, float> AfterTake = null;
+
+        private static float Share(long taken, long before) => before > 0 ? Mathf.Clamp01((float)taken / before) : 1f;
 
         /// <summary>
         /// While set, the Take functions only work out what they would take (BeforeTake / AfterTake are told the same
@@ -133,13 +138,13 @@ namespace ImmersiveShared
                 var part = gi.InstantiateStackable(units);
                 if (part == null) return null;
                 gi.m_StackableItem.m_Units = have - units;
-                AfterTake?.Invoke(gi, true);
+                AfterTake?.Invoke(gi, true, Share(units, have));
                 moved = player.AddItemToPlayerInventory(part, false, false);
                 Verbose.Log($"Took {units} of {have} x {Nearby.GearName(gi)} lying near the {place.Label} (the rest stays)");
             }
             else
             {
-                AfterTake?.Invoke(gi, false);
+                AfterTake?.Invoke(gi, false, 1f);
                 moved = player.AddItemToPlayerInventory(gi, false, false);
                 Verbose.Log($"Took {Nearby.GearName(gi)} lying near the {place.Label} (same object {moved != null && moved.Pointer == gi.Pointer})");
             }
@@ -194,7 +199,7 @@ namespace ImmersiveShared
                 int take = Math.Min(units, count - taken);
                 if (take <= 0) continue;
                 BeforeTake?.Invoke(gi, false);
-                AfterTake?.Invoke(gi, take < units);
+                AfterTake?.Invoke(gi, take < units, Share(take, units));
                 taken += take;
                 if (Pretend) continue;
                 if (take == units)
@@ -219,7 +224,7 @@ namespace ImmersiveShared
                 BeforeTake?.Invoke(gi, false);
                 long removed = Pretend ? Math.Min(before, amount - taken) : Inventory.RemoveAmountFromGearItem(gi, new ItemWeight(amount - taken)).m_Units;
                 long left = Pretend ? before - removed : gi.GetItemWeightKG(false).m_Units;
-                AfterTake?.Invoke(gi, removed <= 0 || left > 0);
+                AfterTake?.Invoke(gi, removed <= 0 || left > 0, Share(removed, before));
                 if (removed <= 0) continue;
                 taken += removed;
                 if (Pretend) continue;
@@ -243,7 +248,7 @@ namespace ImmersiveShared
                 BeforeTake?.Invoke(gi, true);
                 long removed = Pretend ? Math.Min(before, amount - taken) : powder.RemovePowder(new ItemWeight(amount - taken)).m_Units;
                 long left = Pretend ? before - removed : powder.m_Weight.m_Units;
-                AfterTake?.Invoke(gi, removed <= 0 || left > 0);
+                AfterTake?.Invoke(gi, removed <= 0 || left > 0, Share(removed, before));
                 if (removed <= 0) continue;
                 taken += removed;
                 if (Pretend) continue;
@@ -332,7 +337,7 @@ namespace ImmersiveShared
                     if (!Pretend) gi.m_WaterSupply.m_VolumeInLiters = new ItemLiquidVolume(before - removed);
                     destroy = before - removed <= 0;
                 }
-                AfterTake?.Invoke(gi, removed <= 0 || !destroy);
+                AfterTake?.Invoke(gi, removed <= 0 || !destroy, Share(removed, before));
                 if (removed <= 0) continue;
                 taken += removed;
                 if (Pretend) continue;
