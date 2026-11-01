@@ -63,7 +63,7 @@ English and Russian; the interface follows the game's language.
 
 ## Compatibility
 
-Tested with The Long Dark 2.54 and MelonLoader 0.7.2.
+Tested with The Long Dark 2.58 (Iron Road) and MelonLoader 0.7.2.
 
 ## Support the Author
 
@@ -143,7 +143,7 @@ If you enjoy my work, you can leave a voluntary donation on Ko-fi or Boosty.
 
 ## Совместимость
 
-Проверено на The Long Dark 2.54 и MelonLoader 0.7.2.
+Проверено на The Long Dark 2.58 (Iron Road) и MelonLoader 0.7.2.
 
 ## Поддержать автора
 
