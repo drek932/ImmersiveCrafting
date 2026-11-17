@@ -1,3 +1,6 @@
+<img width="1698" height="687" alt="image" src="https://github.com/user-attachments/assets/1ec831cd-5830-4009-9418-a3b92635dd2e" />
+
+
 # Immersive Crafting
 
 **Tools and materials lying at your workbench count as if you carried them.**
